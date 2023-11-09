@@ -30,9 +30,10 @@ router.post(
     const user = await User.findOne({
       $or: [{ email: req.body.email }, { userName: req.body.userName }],
     });
+  
 
     if (user) {
-      throw new BadRequest("User already exists");
+      throw new BadRequest(`User already exists`);
     }
 
     await User.create({
@@ -45,11 +46,7 @@ router.post(
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    const users = await User.aggregate([
-      {
-        $project: userProjection,
-      },
-    ]);
+    const users = await User.find({}, userProjection);
     res.json(users);
   })
 );

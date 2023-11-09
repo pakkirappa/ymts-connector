@@ -71,34 +71,45 @@ export const memberAuthHandler = async (
   next: NextFunction
 ) => {
   // if path contains login or register then skip auth
-  if (req.path.includes("login") || req.path.includes("register")) {
-    return next();
-  }
+  try {
+    if (req.path.includes("login")) {
+      return next();
+    }
 
-  const token = req.cookies.token;
+    if (req.path.includes("user") && req.method === "POST") {
+      return next();
+    }
 
-  if (!token) {
-    return res.status(401).json({ msg: `Token is required` });
-  }
+    const token = req.cookies.token;
 
-  const decodedUser = jwt.verify(token, CONFIG.AUTH.JWT_SECRET) as {
-    _id: number;
-  };
+    if (!token) {
+      return res.status(401).json({ msg: `Token is required` });
+    }
 
-  if (!decodedUser) {
-    return res.status(401).json({ msg: `Invalid token` });
-  }
+    const decodedUser = jwt.verify(token, CONFIG.AUTH.JWT_SECRET) as {
+      _id: number;
+    };
 
-  const user = await User.findById(decodedUser._id);
+    if (!decodedUser) {
+      return res.status(401).json({ msg: `Invalid token` });
+    }
 
-  if (!user) {
+    const user = await User.findById(decodedUser._id);
+
+    if (!user) {
+      return res.status(401).json({
+        msg: `No user found with this token , please check`,
+      });
+    }
+
+    req.sender = user;
+    req.user = user;
+
+    next();
+  } catch (error: any) {
+    console.log(error);
     return res.status(401).json({
-      msg: `No user found with this token , please check`,
+      msg: error.message,
     });
   }
-
-  req.sender = user;
-  req.user = user;
-
-  next();
 };

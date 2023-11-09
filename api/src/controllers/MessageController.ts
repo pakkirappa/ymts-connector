@@ -7,7 +7,11 @@ import { BadRequest, NotFound } from "../errors/Errors";
 import Config from "../config";
 import { created, deleted, updated } from "../lib/Responses";
 import { validate } from "../middleware/Validator";
-import { idValidater, messageValidator } from "../lib/Validations";
+import {
+  messageValidator,
+  getMessageValidator,
+  getTopicValidator,
+} from "../lib/Validations";
 import Message from "../models/Message";
 import { attachments } from "../lib/Upload";
 import { FOLDER_NAMES } from "../constants";
@@ -17,7 +21,7 @@ import Conversation from "../models/Conversation";
 import Topic from "../models/Topic";
 
 const router = Router();
-const RES_NAME = "Message Sent Successfully";
+const RES_NAME = "Message";
 
 router.post(
   "/",
@@ -52,7 +56,7 @@ router.post(
           attachments,
         });
 
-        const toSendTopic = await Topic.findById(topic);
+        const toSendTopic = await Topic.findOne({ name: topic });
 
         if (!toSendTopic) {
           throw new NotFound("Topic not found");
@@ -62,7 +66,10 @@ router.post(
 
         // todo : send notifications to the users in the topic
       } else if (user) {
-        const isUser = await User.findById(user);
+        // if this is a single one on one message
+        const isUser = await User.findOne({
+          $or: [{ email: user }, { userName: user }],
+        });
 
         if (!isUser) {
           throw new NotFound("User not found");
@@ -77,8 +84,8 @@ router.post(
         // check if conversation exists between the two users
         const conversation = await Conversation.findOne({
           $or: [
-            { user1: user, user2: _id },
-            { user1: _id, user2: user },
+            { participants: [isUser._id, _id] },
+            { participants: [_id, isUser._id] },
           ],
         });
 
@@ -89,7 +96,7 @@ router.post(
         } else {
           // create a new conversation
           await Conversation.create({
-            participants: [user, _id],
+            participants: [isUser._id, _id],
             messages: [message._id],
           });
         }
@@ -102,7 +109,7 @@ router.post(
       if (uploadedFiles && uploadedFiles.length > 0) {
         for (const file of uploadedFiles) {
           const toDeletePath = path.join(
-            __dirname,
+            process.cwd(),
             FOLDER_NAMES.PUBLIC,
             FOLDER_NAMES.ATTACHMENTS,
             file.filename
@@ -123,14 +130,17 @@ router.post(
 );
 
 router.get(
-  "/topic/:id",
+  "/topic/:name",
+  validate(getTopicValidator),
   asyncHandler(async (req: any, res: Response) => {
-    const { id } = req.params;
-    // getting topic by id
-    const topic = await Topic.findById(id);
+    const { name } = req.params;
+    const count = Number(req.query.count) || 10; // getting count of messages to fetch
+    // getting topic by name
+    const topic = await Topic.findOne({ name });
+
 
     if (!topic) {
-      throw new NotFound("Topic not found");
+      throw new NotFound(`Topic with name ${name} not found`);
     }
 
     // get messages along with the sender details
@@ -139,35 +149,38 @@ router.get(
       { text: 1, senderId: 1, attachments: 1 }
     )
       .populate("senderId", { name: 1, userName: 1, email: 1 })
-      .limit(20);
+      .limit(count);
 
     res.json(messages);
   })
 );
 
 router.get(
-  "/user/:userId",
+  "/user/:name",
+  validate(getMessageValidator),
   asyncHandler(async (req: any, res: Response) => {
-    const { userId } = req.params;
+    const { name } = req.params;
+    const count = Number(req.query.count) || 10; // getting count of messages to fetch
     // get user by id
-    const topic = await User.findById(userId);
+    const user = await User.findOne({ userName: name });
 
-    if (!topic) {
-      throw new NotFound("User not found");
+    if (!user) {
+      throw new NotFound(`User with username ${name} Not Found`);
     }
 
     // get messages along with the sender details
     const messages = await Message.find(
       {
-        $or: [
-          { senderId: req.sender._id, receiverId: userId },
-          { senderId: userId, receiverId: req.sender._id },
-        ],
+        // there is no reciver id only sender is is there
+        senderId: {
+          $in: [req.sender._id, user._id],
+        },
       },
       { text: 1, senderId: 1, attachments: 1 }
     )
-      .populate("senderId", { name: 1, userName: 1, email: 1 })
-      .limit(20);
+      .populate("senderId", { userName: 1, _id: 0 })
+      .sort({ createdAt: -1 })
+      .limit(count);
 
     res.json(messages);
   })

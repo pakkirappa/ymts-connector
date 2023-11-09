@@ -63,22 +63,29 @@ export const topicValidator = [
     .custom((users: string[]) => {
       return users.length === new Set(users).size;
     })
-    .withMessage("Users must be unique")
-
-    .custom((users: string[]) => {
-      return users.every((user) => {
-        // check if the user is a valid mongo id
-        return user.match(/^[0-9a-fA-F]{24}$/);
-      });
-    })
-    .withMessage("Users must be valid mongo ids")
-    .custom((users: string[]) => {
-      const isValid = users.every((user) => {
-        return User.findById(user);
-      });
-      return isValid;
-    })
-    .withMessage("Users must be valid mongo ids"),
+    .withMessage("Users must be unique"),
+  // .custom((users: string[]) => {
+  //   // the users are the usernames
+  //   const getUsers = async () => {
+  //     const gotUsers = await User.find({ userName: { $in: users } });
+  //     return gotUsers;
+  //   };
+  //   // check if the users are registered or not
+  //   getUsers()
+  //     .then((gotUsers) => {
+  //       if (gotUsers.length !== users.length) {
+  //         return false;
+  //       } else {
+  //         return true;
+  //       }
+  //     })
+  //     .catch((err) => {
+  //       return false;
+  //     });
+  // })
+  // .withMessage(
+  //   "Some Users must be registered. If you are trying to add a new user, please ask them to register first"
+  // ),
 ];
 
 export const idValidater = [
@@ -112,4 +119,30 @@ export const userValidator = [
 
 export const expenseTypeValidator = [
   body("name").notEmpty().trim().withMessage("Name is required"),
+];
+
+export const getMessageValidator = [
+  param("name")
+    .notEmpty()
+    .withMessage("Name is required")
+    .isString()
+    .withMessage("Name must be a string"),
+  query("count")
+    .optional()
+    .isInt()
+    .withMessage("Count must be a number")
+    .toInt(),
+];
+
+export const getTopicValidator = [
+  param("name")
+    .notEmpty()
+    .withMessage("Name is required")
+    .isString()
+    .withMessage("Name must be a string"),
+  query("count")
+    .optional()
+    .isInt()
+    .withMessage("Count must be a number")
+    .toInt(),
 ];
