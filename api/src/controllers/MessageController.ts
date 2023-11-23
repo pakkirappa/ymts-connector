@@ -1,24 +1,22 @@
-import { Request, Response, Router } from "express";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import asyncHandler from "../middleware/AsyncHandler";
-import User, { IUser } from "../models/User";
-import { BadRequest, NotFound } from "../errors/Errors";
-import Config from "../config";
-import { created, deleted, updated } from "../lib/Responses";
-import { validate } from "../middleware/Validator";
-import {
-  messageValidator,
-  getMessageValidator,
-  getTopicValidator,
-} from "../lib/Validations";
-import Message from "../models/Message";
-import { attachments } from "../lib/Upload";
-import { FOLDER_NAMES } from "../constants";
+import { Response, Router } from "express";
 import fs from "fs";
 import path from "path";
+import Config from "../config";
+import { FOLDER_NAMES } from "../constants";
+import { BadRequest, NotFound } from "../errors/Errors";
+import { created } from "../lib/Responses";
+import { attachments } from "../lib/Upload";
+import {
+  getMessageValidator,
+  getTopicValidator,
+  messageValidator,
+} from "../lib/Validations";
+import asyncHandler from "../middleware/AsyncHandler";
+import { validate } from "../middleware/Validator";
 import Conversation from "../models/Conversation";
+import Message from "../models/Message";
 import Topic from "../models/Topic";
+import User from "../models/User";
 
 const router = Router();
 const RES_NAME = "Message";
@@ -135,9 +133,9 @@ router.get(
   asyncHandler(async (req: any, res: Response) => {
     const { name } = req.params;
     const count = Number(req.query.count) || 10; // getting count of messages to fetch
+    const page = Number(req.query.page) || 1; // getting count of messages to fetch
     // getting topic by name
     const topic = await Topic.findOne({ name });
-
 
     if (!topic) {
       throw new NotFound(`Topic with name ${name} not found`);
@@ -149,6 +147,7 @@ router.get(
       { text: 1, senderId: 1, attachments: 1 }
     )
       .populate("senderId", { name: 1, userName: 1, email: 1 })
+      .skip((page - 1) * count)
       .limit(count);
 
     res.json(messages);
@@ -161,8 +160,9 @@ router.get(
   asyncHandler(async (req: any, res: Response) => {
     const { name } = req.params;
     const count = Number(req.query.count) || 10; // getting count of messages to fetch
+    const page = Number(req.query.page) || 1; // getting count of messages to fetch
     // get user by id
-    const user = await User.findOne({ userName: name });
+    const user = await User.findOne({ userName: name }, { _id: 1 });
 
     if (!user) {
       throw new NotFound(`User with username ${name} Not Found`);
@@ -176,10 +176,11 @@ router.get(
           $in: [req.sender._id, user._id],
         },
       },
-      { text: 1, senderId: 1, attachments: 1 }
+      { text: 1, senderId: 1, attachments: 1, _id: 0 }
     )
       .populate("senderId", { userName: 1, _id: 0 })
       .sort({ createdAt: -1 })
+      .skip((page - 1) * count) // skip the messages based on the page number
       .limit(count);
 
     res.json(messages);
