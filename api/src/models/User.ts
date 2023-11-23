@@ -65,8 +65,6 @@ const userSchema = new Schema<IUser, IUserModel, IUserMethods>(
 // add methods to the schema
 userSchema.methods.toJson = function () {
   const user = this.toObject();
-  delete user.password;
-  delete this._v;
   return user;
 };
 
@@ -78,7 +76,6 @@ userSchema.methods.generateToken = function () {
   });
   return token;
 };
-
 
 // add index on username and email
 userSchema.index({ username: 1, email: 1 });

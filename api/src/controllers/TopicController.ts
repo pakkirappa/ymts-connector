@@ -2,15 +2,106 @@ import { Request, Response, Router } from "express";
 import asyncHandler from "../middleware/AsyncHandler";
 import Topic, { ITopic } from "../models/Topic";
 import { BadRequest, NotFound } from "../errors/Errors";
-import Config from "../config";
 import { created, deleted, updated } from "../lib/Responses";
 import { validate } from "../middleware/Validator";
-import { idValidater, topicValidator } from "../lib/Validations";
+import {
+  addRemoveTopicValidator,
+  idValidater,
+  topicValidator,
+} from "../lib/Validations";
 import User from "../models/User";
 import { param } from "express-validator";
 
 const router = Router();
 const RES_NAME = "Topic";
+
+router.post(
+  "/:name/add/",
+  validate(addRemoveTopicValidator),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { name } = req.params as { name: string };
+
+    const { names } = req.query as { names: string[] };
+
+    const users = await User.find(
+      { userName: { $in: names } },
+      { _id: 1 }
+    ).lean();
+
+    if (!users) {
+      throw new BadRequest("Users not found");
+    }
+
+    if (users.length === 0) {
+      throw new BadRequest("No users provided");
+    }
+
+    const topic = await Topic.findOne({ name });
+
+    if (!topic) {
+      throw new NotFound(`Topic with name ${name} not found`);
+    }
+
+    const userIds = users.map((u) => u._id);
+
+    // add the users from the topic
+    topic.users = [...topic.users, ...userIds];
+
+    await topic.save();
+
+    let msg = "";
+
+    for (const user of users) {
+      msg += `${user.name} is added to the topic ${topic.name}\n`;
+    }
+
+    res.json({ msg });
+  })
+);
+
+router.delete(
+  "/:name/remove/",
+  validate(addRemoveTopicValidator),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { name } = req.params as { name: string };
+
+    const { names } = req.body as { names: string[] };
+
+    const users = await User.find(
+      { userName: { $in: names } },
+      { _id: 1 }
+    ).lean();
+
+    if (!users) {
+      throw new BadRequest("Users not found");
+    }
+
+    if (users.length === 0) {
+      throw new BadRequest("No users provided");
+    }
+
+    const topic = await Topic.findOne({ name });
+
+    if (!topic) {
+      throw new NotFound(`Topic with nane ${name} not found`);
+    }
+
+    // remove the users from the topic
+    topic.users = topic.users.filter((u) => {
+      return !users.some((user) => user._id.toString() === u.toString());
+    });
+
+    await topic.save();
+
+    let msg = "";
+
+    for (const user of users) {
+      msg += `${user.name} is removed from the topic ${topic.name}\n`;
+    }
+
+    res.json({ msg });
+  })
+);
 
 router.post(
   "/",
@@ -48,6 +139,24 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const topics = await Topic.find({}, { name: 1, _id: 1 });
     res.json(topics);
+  })
+);
+
+router.get(
+  "/:name/users",
+  validate([param("name").notEmpty().withMessage("Name is required")]),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { name } = req.params as { name: string };
+    const topic = await Topic.findOne({ name }, { name: 1, _id: 1, users: 1 });
+    if (!topic) {
+      throw new NotFound(`Topic with name ${name} not found`);
+    }
+    const users = await User.find(
+      { _id: { $in: topic.users } },
+      { name: 1, _id: 1 }
+    ).lean();
+
+    res.json(users);
   })
 );
 

@@ -146,3 +146,16 @@ export const getTopicValidator = [
     .withMessage("Count must be a number")
     .toInt(),
 ];
+
+export const addRemoveTopicValidator = [
+  param("name")
+    .notEmpty()
+    .withMessage("Name is required")
+    .isString()
+    .withMessage("Name must be a string"),
+  body("names")
+    .notEmpty()
+    .withMessage("Names are required")
+    .isArray({ min: 1 })
+    .withMessage("At least 1 name is required"),
+];

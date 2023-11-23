@@ -51,6 +51,8 @@ app.use(express.json()); // json parser middleware
 app.use(morgan("dev")); //logging middleware
 app.use(`/${FOLDER_NAMES.STATIC_PATH}`, express.static(publicFolder)); //static files serving middleware
 
+// rate limiter middleware
+
 //initialize the database
 async function startServer() {
   try {

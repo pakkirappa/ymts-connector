@@ -60,7 +60,10 @@ router.post(
           throw new NotFound("Topic not found");
         }
 
+        // push a new message to the topic
         toSendTopic.messages.push(message._id);
+
+        await toSendTopic.save();
 
         // todo : send notifications to the users in the topic
       } else if (user) {
@@ -99,29 +102,20 @@ router.post(
           });
         }
 
-        // todo : send a notification to the user
+        // todo : send a notification to the user about the message
       } else {
         throw new BadRequest("Topic or User is required");
       }
     } catch (error: any) {
       if (uploadedFiles && uploadedFiles.length > 0) {
         for (const file of uploadedFiles) {
-          const toDeletePath = path.join(
-            process.cwd(),
-            FOLDER_NAMES.PUBLIC,
-            FOLDER_NAMES.ATTACHMENTS,
-            file.filename
-          );
-
           // if file exists delete it
-          if (fs.existsSync(toDeletePath)) {
-            fs.unlinkSync(toDeletePath);
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
           }
         }
       }
-      return res
-        .status(500)
-        .json({ message: error.message || "Something went wrong try again" });
+      throw error; // throw the error
     }
     res.json({ msg: created(RES_NAME) });
   })
@@ -161,7 +155,7 @@ router.get(
     const { name } = req.params;
     const count = Number(req.query.count) || 10; // getting count of messages to fetch
     const page = Number(req.query.page) || 1; // getting count of messages to fetch
-    // get user by id
+    // get user by username
     const user = await User.findOne({ userName: name }, { _id: 1 });
 
     if (!user) {
