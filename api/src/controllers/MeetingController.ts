@@ -8,6 +8,8 @@ import { idValidater, meetingValidator } from "../lib/Validations";
 import User from "../models/User";
 import Meeting from "../models/Meeting";
 import { v4 as uuid } from "uuid";
+import scheduler from "node-schedule";
+import { link } from "fs";
 
 const router = Router();
 const RES_NAME = "Meeting";
@@ -27,8 +29,11 @@ router.post(
       participants: users,
     });
 
-    // todo : send a notification to all the users that a new meeting is scheduled to mail
+    scheduler.scheduleJob(meetingLink, "", () => {
+      // todo : send a notification to all the users that a new meeting is scheduled to mail
+    });
 
+    // todo : send a notification to all the users that a new meeting is scheduled to mail
     res.json({ msg: created(RES_NAME) });
   })
 );

@@ -157,5 +157,10 @@ export const addRemoveTopicValidator = [
     .notEmpty()
     .withMessage("Names are required")
     .isArray({ min: 1 })
-    .withMessage("At least 1 name is required"),
+    .withMessage("At least 1 name is required")
+    .custom((value) => {
+      const names = value as string[];
+      return names.length === new Set(names).size;
+    })
+    .withMessage("Names must be unique"),
 ];

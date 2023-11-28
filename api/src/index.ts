@@ -29,6 +29,7 @@ import UserRouter from "./controllers/UserController";
 import TopicRouter from "./controllers/TopicController";
 import MessageRouter from "./controllers/MessageController";
 import MeetingRouter from "./controllers/MeetingController";
+import ConversationRouter from "./controllers/ConversationController";
 
 const publicFolder = path.join(__dirname, FOLDER_NAMES.PUBLIC);
 
@@ -103,6 +104,7 @@ app.use("/api/users", UserRouter);
 app.use("/api/topics", TopicRouter);
 app.use("/api/messages", MessageRouter);
 app.use("/api/meetings", MeetingRouter);
+app.use("/api/conversations", ConversationRouter);
 
 // 404 - Not Found route
 app.use("*", (req, res) => {

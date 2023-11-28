@@ -30,7 +30,6 @@ router.post(
     const user = await User.findOne({
       $or: [{ email: req.body.email }, { userName: req.body.userName }],
     });
-  
 
     if (user) {
       throw new BadRequest(`User already exists`);
@@ -112,6 +111,7 @@ router.post(
       throw new BadRequest("Invalid password");
     }
     const token = user.generateToken(); // generate the token using the user model method
+
     res
       .cookie("token", token, {
         httpOnly: true,
@@ -119,7 +119,7 @@ router.post(
         sameSite: "none",
         expires: new Date(Date.now() + 1000 * 60 * 60 * 24), // 24 hours
       })
-      .json({ message: "Login successful", id: user._id });
+      .json({ message: "Login successful" });
   })
 );
 

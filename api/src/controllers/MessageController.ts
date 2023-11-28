@@ -84,10 +84,9 @@ router.post(
 
         // check if conversation exists between the two users
         const conversation = await Conversation.findOne({
-          $or: [
-            { participants: [isUser._id, _id] },
-            { participants: [_id, isUser._id] },
-          ],
+          participants: {
+            $all: [isUser._id, _id],
+          },
         });
 
         if (conversation) {
@@ -131,6 +130,7 @@ router.get(
     // getting topic by name
     const topic = await Topic.findOne({ name });
 
+    
     if (!topic) {
       throw new NotFound(`Topic with name ${name} not found`);
     }
@@ -156,19 +156,32 @@ router.get(
     const count = Number(req.query.count) || 10; // getting count of messages to fetch
     const page = Number(req.query.page) || 1; // getting count of messages to fetch
     // get user by username
-    const user = await User.findOne({ userName: name }, { _id: 1 });
+    const user = await User.findOne(
+      { userName: name },
+      { _id: 1, name: 1, userName: 1 }
+    );
 
     if (!user) {
       throw new NotFound(`User with username ${name} Not Found`);
     }
 
+    // get the conversation between the two users
+    const conversation = await Conversation.findOne({
+      participants: {
+        $all: [req.sender._id, user._id],
+      },
+    });
+
+    if (!conversation) {
+      throw new NotFound(
+        `Conversation between ${req.sender.userName} and ${user.userName} not found`
+      );
+    }
+
     // get messages along with the sender details
     const messages = await Message.find(
       {
-        // there is no reciver id only sender is is there
-        senderId: {
-          $in: [req.sender._id, user._id],
-        },
+        _id: { $in: conversation.messages },
       },
       { text: 1, senderId: 1, attachments: 1, _id: 0 }
     )

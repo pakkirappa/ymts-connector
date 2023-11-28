@@ -21,11 +21,11 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { name } = req.params as { name: string };
 
-    const { names } = req.query as { names: string[] };
+    const { names } = req.body as { names: string[] };
 
     const users = await User.find(
       { userName: { $in: names } },
-      { _id: 1 }
+      { _id: 1, name: 1 }
     ).lean();
 
     if (!users) {
@@ -42,18 +42,24 @@ router.post(
       throw new NotFound(`Topic with name ${name} not found`);
     }
 
-    const userIds = users.map((u) => u._id);
-
-    // add the users from the topic
-    topic.users = [...topic.users, ...userIds];
-
-    await topic.save();
-
     let msg = "";
 
+    // check if the users are already added to the topic
     for (const user of users) {
-      msg += `${user.name} is added to the topic ${topic.name}\n`;
+      const index = topic.users.findIndex(
+        (u) => u.toString() === user._id.toString()
+      );
+      if (index !== -1) {
+        throw new BadRequest(
+          `User with name ${user.name} already added to the topic ${topic.name}`
+        );
+      } else {
+        topic.users.push(user._id); // add the user to the topic
+        msg += `${user.name} is added to the topic ${topic.name}\n`;
+      }
     }
+
+    await topic.save();
 
     res.json({ msg });
   })
@@ -69,7 +75,7 @@ router.delete(
 
     const users = await User.find(
       { userName: { $in: names } },
-      { _id: 1 }
+      { _id: 1, name: 1 }
     ).lean();
 
     if (!users) {
@@ -86,18 +92,23 @@ router.delete(
       throw new NotFound(`Topic with nane ${name} not found`);
     }
 
-    // remove the users from the topic
-    topic.users = topic.users.filter((u) => {
-      return !users.some((user) => user._id.toString() === u.toString());
-    });
-
-    await topic.save();
-
     let msg = "";
 
     for (const user of users) {
-      msg += `${user.name} is removed from the topic ${topic.name}\n`;
+      const index = topic.users.findIndex(
+        (u) => u.toString() === user._id.toString()
+      );
+      if (index !== -1) {
+        topic.users.splice(index, 1);
+        msg += `${user.name} is removed from the topic ${topic.name}\n`;
+      } else {
+        throw new BadRequest(
+          `${user.name} not found in the topic ${topic.name}`
+        );
+      }
     }
+
+    await topic.save();
 
     res.json({ msg });
   })
@@ -112,6 +123,8 @@ router.post(
       { _id: 1 }
     );
 
+    const { name, description } = req.body;
+
     if (!users) {
       throw new BadRequest("Users not found");
     }
@@ -123,8 +136,8 @@ router.post(
     }
 
     await Topic.create({
-      name: req.body.name,
-      description: req.body.description,
+      name,
+      description,
       users,
     });
 
@@ -153,7 +166,7 @@ router.get(
     }
     const users = await User.find(
       { _id: { $in: topic.users } },
-      { name: 1, _id: 1 }
+      { name: 1, _id: 1 , userName: 1  }
     ).lean();
 
     res.json(users);
