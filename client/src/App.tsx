@@ -1,35 +1,56 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useRef, useState } from "react";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const doSetUp = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false,
+    });
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+    });
+    setStream(stream);
+    // show continuous video
+    // flip the video horizontally
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = displayStream;
+      videoRef.current.play();
+      // videoRef.current.style.transform = "rotateY(180deg)";
+    }
+    displayStream.getTracks().forEach((track) => {
+      track.onended = () => {
+        setStream(null);
+      };
+    });
+  };
+
+  const stopStream = () => {
+    if (stream) {
+      stream.getTracks().forEach((track) => {
+        track.stop();
+      });
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="flex bg-red justify-around">
+      <button onClick={doSetUp}>Start</button>
+      <video
+        ref={videoRef}
+        autoPlay // this is the video stream
+      />
+      <button
+        onClick={stopStream}
+        className="bg-red-500 text-white p-3 rounded-m"
+      >
+        Stop{" "}
+      </button>
+    </div>
+  );
 }
 
-export default App
+export default App;
