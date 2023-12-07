@@ -53,10 +53,16 @@ function App() {
       console.log(err);
     });
 
-    call.on("stream", (remoteStream) => {
+    call.on("stream", async (remoteStream) => {
       if (videoRef.current) {
         videoRef.current.srcObject = remoteStream;
-        videoRef.current.play();
+        await videoRef.current.play();
+      }
+    });
+
+    call.on("willCloseOnRemote", () => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
     });
   };
@@ -116,7 +122,7 @@ function App() {
   };
 
   const getPeers = async () => {
-    const myPeer = new Peer(getRandomId());
+    const myPeer = new Peer(getRandomId()); // creating a peer (peer = user)
     setPeer(myPeer);
 
     if (!myPeer) {
@@ -124,11 +130,12 @@ function App() {
       return;
     }
 
+    // when peer is initialized and ready to use
     myPeer.on("open", (id) => {
       console.log("My peer id is: " + id);
     });
 
-    // when connected to peer
+    // when connected to another peer (another user) or when another peer connects to this peer
     myPeer.on("connection", (conn) => {
       conn.on("data", (data) => {
         console.log("data received", data);
@@ -152,6 +159,13 @@ function App() {
         video: true,
       });
 
+      // asking the user if he wants to accept the call
+      if (!window.confirm("Do you want to accept the call?")) {
+        call.close(); // closing the call if user doesn't want to accept the call
+        return;
+      }
+
+      // answering the call and sending the stream
       call.answer(videoStream);
 
       call.on("stream", (remoteStream) => {
@@ -163,6 +177,7 @@ function App() {
     });
   };
 
+  // method for sharing screen with other peer
   const toggleShareScreen = async () => {
     if (!peer) {
       console.log("No peer toggle share screen");
@@ -177,22 +192,6 @@ function App() {
     const displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: true,
     });
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = displayStream;
-      videoRef.current.play();
-    }
-
-    displayStream.addEventListener("removetrack" , (stream) => {
-      console.log(stream, "stream");
-    });
-    
-    const videoTracks = displayStream.getVideoTracks();
-    if (videoTracks.length > 0) {
-      videoTracks[0].enabled = !videoTracks[0].enabled;
-    } else {
-      console.log("No display media tracks");
-    }
 
     setIsVideoOn((prev) => !prev);
   };
